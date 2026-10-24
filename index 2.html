@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3bd-elmaksoud system</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef2f1;--card:#fff;--ink:#10222b;--mute:#5d707a;--line:#d5dfdd;--acc:#0e7c86;--acc2:#e4572e;--ok:#2e8b57;--bar:#fff;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1a20;--card:#15262e;--ink:#e8f1f0;--mute:#93a8b0;--line:#27404a;--acc:#35b5c0;--acc2:#ff7a54;--ok:#4cc58a;--bar:#15262e}}
+:root[data-theme="dark"]{--bg:#0d1a20;--card:#15262e;--ink:#e8f1f0;--mute:#93a8b0;--line:#27404a;--acc:#35b5c0;--acc2:#ff7a54;--ok:#4cc58a;--bar:#15262e}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Cairo,Tahoma,Arial,sans-serif;font-size:15px;padding-bottom:78px}
+header{padding:16px 16px 8px;display:flex;justify-content:space-between;align-items:center}
+h1{font-size:20px;font-weight:800;margin:0}h2{font-size:16px;margin:16px 0 8px;font-weight:800}
+main{padding:0 14px;max-width:640px;margin:auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat b{display:block;font-size:22px;font-weight:800}.stat span{color:var(--mute);font-size:13px}
+.hero{background:var(--acc);color:#fff;border:0}.hero span{color:#d8f3f5}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.row+.row{border-top:1px solid var(--line);margin-top:8px;padding-top:8px}
+.mute{color:var(--mute);font-size:13px}.bad{color:var(--acc2);font-weight:600}.good{color:var(--ok);font-weight:600}
+input,select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;margin:4px 0 8px}
+label{font-size:13px;color:var(--mute)}
+button{font:inherit;border:0;border-radius:8px;padding:10px 14px;background:var(--acc);color:#fff;font-weight:600;cursor:pointer}
+button.ghost{background:transparent;color:var(--acc);border:1px solid var(--acc)}button.red{background:var(--acc2)}
+button.sm{padding:6px 10px;font-size:13px}button.full{width:100%}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--bar);border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom,0px)}
+nav button{flex:1;background:none;color:var(--mute);border-radius:0;padding:10px 2px;font-size:12px}
+nav button.on{color:var(--acc);box-shadow:inset 0 3px 0 var(--acc)}
+nav i{display:block;font-style:normal;font-size:20px}
+dialog{border:0;border-radius:14px;width:min(92vw,520px);padding:16px;background:var(--card);color:var(--ink)}
+dialog::backdrop{background:#0008}
+.tag{font-size:12px;padding:2px 8px;border-radius:99px;background:var(--bg);border:1px solid var(--line)}
+.pills{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.pills button{padding:6px 10px;font-size:13px}
+</style>
+</head>
+<body>
+<header><h1 id="ttl" dir="ltr">3bd-elmaksoud system</h1><button class="ghost sm" id="th">🌓</button></header>
+<main id="app"></main>
+<nav id="nav"></nav>
+<dialog id="dlg"></dialog>
+<script>
+var CATS=["موبايل","إكسسوار","شاحن وكابل","سماعة","جراب وسكرينة","قطع غيار"];
+var ST=["جاري الإصلاح","جاهز","تم التسليم"];
+var db={products:[],sales:[],repairs:[],purchases:[]},tab="home",cart=[],bcart=[],q="";
+try{var s=localStorage.getItem("phoneshop");if(s)db=JSON.parse(s)}catch(e){}
+if(!db.purchases)db.purchases=[];
+function save(){try{localStorage.setItem("phoneshop",JSON.stringify(db))}catch(e){}}
+function $(i){return document.getElementById(i)}
+function esc(t){return String(t==null?"":t).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+function n(v){return Number(v)||0}
+function m(v){return n(v).toLocaleString("ar-EG",{maximumFractionDigits:0})+" ج.م"}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,5)}
+function day(d){return new Date(d).toDateString()}
+function fmt(d){return new Date(d).toLocaleDateString("ar-EG",{day:"numeric",month:"short"})}
+function saleProfit(s){return s.items.reduce(function(a,i){return a+(i.price-i.cost)*i.qty},0)-n(s.discount)}
+function debtOf(s){return Math.max(0,n(s.total)-n(s.paid))}
+
+var TABS=[["home","🏠","الرئيسية"],["stock","📦","المخزون"],["sell","🛒","بيع"],["buy","📥","شراء"],["fix","🔧","صيانة"],["debt","📒","الديون"]];
+function nav(){$("nav").innerHTML=TABS.map(function(t){return'<button class="'+(tab==t[0]?"on":"")+'" data-t="'+t[0]+'"><i>'+t[1]+'</i>'+t[2]+'</button>'}).join("")}
+$("nav").onclick=function(e){var b=e.target.closest("button");if(b){tab=b.dataset.t;q="";render()}};
+$("th").onclick=function(){var r=document.documentElement,d=r.dataset.theme==="dark"||(!r.dataset.theme&&matchMedia("(prefers-color-scheme:dark)").matches);r.dataset.theme=d?"light":"dark"};
+
+function render(){nav();$("app").innerHTML=({home:home,stock:stock,sell:function(){return sell()+shist()},buy:function(){return buy()+bhist()},fix:fix,debt:debt})[tab]()}
+
+function home(){
+ var t=new Date().toDateString(),ts=db.sales.filter(function(s){return day(s.date)==t});
+ var tr=db.repairs.filter(function(r){return r.status=="تم التسليم"&&r.doneAt&&day(r.doneAt)==t});
+ var rev=ts.reduce(function(a,s){return a+n(s.total)},0)+tr.reduce(function(a,r){return a+n(r.price)},0);
+ var pr=ts.reduce(function(a,s){return a+saleProfit(s)},0)+tr.reduce(function(a,r){return a+n(r.price)-n(r.parts)},0);
+ var sv=db.products.reduce(function(a,p){return a+n(p.cost)*n(p.qty)},0);
+ var dt=db.sales.reduce(function(a,s){return a+debtOf(s)},0);
+ var low=db.products.filter(function(p){return n(p.qty)<=2});
+ var open=db.repairs.filter(function(r){return r.status!="تم التسليم"}).length;
+ var h='<div class="card hero stat"><span>مبيعات اليوم</span><b>'+m(rev)+'</b><span>صافي الربح: '+m(pr)+'</span></div>';
+ h+='<div class="grid"><div class="card stat"><span>قيمة المخزون (بالتكلفة)</span><b>'+m(sv)+'</b></div><div class="card stat"><span>ديون عند العملاء</span><b class="'+(dt?"bad":"")+'">'+m(dt)+'</b></div>';
+ h+='<div class="card stat"><span>أجهزة في الصيانة</span><b>'+open+'</b></div><div class="card stat"><span>عدد الأصناف</span><b>'+db.products.length+'</b></div></div>';
+ h+='<h2>أصناف قاربت على النفاد</h2><div class="card">'+(low.length?low.map(function(p){return'<div class="row"><span>'+esc(p.name)+'</span><span class="bad">'+n(p.qty)+' قطعة</span></div>'}).join(""):'<span class="mute">المخزون كويس. لا توجد أصناف ناقصة.</span>')+'</div>';
+ h+=week();
+ h+='<h2>نسخة احتياطية</h2><div class="card"><p class="mute" style="margin-top:0">البيانات محفوظة على هذا الجهاز. خد نسخة بشكل دوري.</p><div class="row"><button class="ghost sm" onclick="exp()">تصدير النسخة</button><button class="ghost sm" onclick="imp()">استرجاع نسخة</button></div></div>';
+ return h}
+function week(){
+ var out=[],mx=1,i;
+ for(i=6;i>=0;i--){var d=new Date();d.setDate(d.getDate()-i);var k=d.toDateString();
+  var v=db.sales.filter(function(s){return day(s.date)==k}).reduce(function(a,s){return a+n(s.total)},0);
+  out.push([d.toLocaleDateString("ar-EG",{weekday:"short"}),v]);mx=Math.max(mx,v)}
+ return'<h2>مبيعات آخر 7 أيام</h2><div class="card"><div style="display:flex;gap:6px;align-items:flex-end;height:110px">'+out.map(function(o){return'<div style="flex:1;text-align:center;font-size:11px;color:var(--mute)"><div style="height:'+Math.max(3,o[1]/mx*80)+'px;background:var(--acc);border-radius:4px 4px 0 0"></div>'+o[0]+'</div>'}).join("")+'</div></div>'}
+
+function stock(){
+ var l=db.products.filter(function(p){return !q||(p.name+p.code).toLowerCase().indexOf(q.toLowerCase())>-1});
+ var h='<div class="row" style="margin-bottom:8px"><input placeholder="ابحث بالاسم أو IMEI" value="'+esc(q)+'" oninput="q=this.value;render2()" style="margin:0"><button onclick="pform()">+ صنف</button></div><div id="lst">'+plist(l)+'</div>';
+ return h}
+function plist(l){return l.length?l.map(function(p){return'<div class="card"><div class="row"><b>'+esc(p.name)+'</b><span class="tag">'+esc(p.cat)+'</span></div><div class="row"><span class="mute">شراء '+m(p.cost)+' • بيع '+m(p.price)+'</span><span class="'+(n(p.qty)<=2?"bad":"good")+'">'+n(p.qty)+' قطعة</span></div>'+(p.code?'<div class="mute">IMEI/كود: '+esc(p.code)+'</div>':'')+'<div class="row"><button class="ghost sm" onclick="pform(\''+p.id+'\')">تعديل</button><button class="ghost sm red" style="color:var(--acc2);border-color:var(--acc2)" onclick="pdel(\''+p.id+'\')">حذف</button></div></div>'}).join(""):'<div class="card mute">لا توجد أصناف. اضغط على + صنف لإضافة أول منتج.</div>'}
+function render2(){var a=$("lst");if(a)a.innerHTML=plist(db.products.filter(function(p){return !q||(p.name+p.code).toLowerCase().indexOf(q.toLowerCase())>-1}))}
+function pform(id){
+ var p=db.products.find(function(x){return x.id==id})||{name:"",cat:CATS[0],code:"",cost:"",price:"",qty:tab=="buy"?0:1};
+ open_('<h2 style="margin-top:0">'+(id?"تعديل صنف":"صنف جديد")+'</h2><label>الاسم</label><input id="f1" value="'+esc(p.name)+'"><label>القسم</label><select id="f2">'+CATS.map(function(c){return'<option'+(c==p.cat?" selected":"")+'>'+c+'</option>'}).join("")+'</select><label>IMEI / كود (اختياري)</label><input id="f3" value="'+esc(p.code)+'"><div class="grid"><div><label>سعر الشراء</label><input id="f4" type="number" inputmode="decimal" value="'+esc(p.cost)+'"></div><div><label>سعر البيع</label><input id="f5" type="number" inputmode="decimal" value="'+esc(p.price)+'"></div></div><label>الكمية</label><input id="f6" type="number" inputmode="numeric" value="'+esc(p.qty)+'"><div class="row"><button onclick="psave(\''+(id||"")+'\')">حفظ</button><button class="ghost" onclick="close_()">إلغاء</button></div>')}
+function psave(id){
+ var o={name:$("f1").value.trim(),cat:$("f2").value,code:$("f3").value.trim(),cost:n($("f4").value),price:n($("f5").value),qty:n($("f6").value)};
+ if(!o.name){alert("اكتب اسم الصنف");return}
+ if(id){Object.assign(db.products.find(function(x){return x.id==id}),o)}else{o.id=uid();db.products.push(o)}
+ save();close_();render()}
+function pdel(id){if(confirm("حذف الصنف نهائيا؟")){db.products=db.products.filter(function(x){return x.id!=id});save();render()}}
+
+function sell(){
+ var l=db.products.filter(function(p){return n(p.qty)>0&&(!q||(p.name+p.code).toLowerCase().indexOf(q.toLowerCase())>-1)}).slice(0,8);
+ var sub=cart.reduce(function(a,i){return a+i.price*i.qty},0);
+ var h='<input placeholder="ابحث عن منتج لإضافته للفاتورة" value="'+esc(q)+'" oninput="q=this.value;sres()">';h+='<div id="sl">'+sresH()+'</div>';
+ if(0)h+=l.map(function(p){return'<div class="card row" onclick="add(\''+p.id+'\')"><span>'+esc(p.name)+'<br><span class="mute">متاح '+n(p.qty)+'</span></span><b>'+m(p.price)+'</b></div>'}).join("")||'<div class="card mute">لا توجد نتائج.</div>';
+ if(cart.length){h+='<h2>الفاتورة</h2><div class="card">'+cart.map(function(i,k){return'<div class="row"><span>'+esc(i.name)+'</span><span><button class="ghost sm" onclick="qty('+k+',-1)">−</button> <b>'+i.qty+'</b> <button class="ghost sm" onclick="qty('+k+',1)">+</button></span><b>'+m(i.price*i.qty)+'</b></div>'}).join("")+'</div>';
+  h+='<div class="card"><label>خصم</label><input id="sd" type="number" inputmode="decimal" value="0" oninput="tot()"><label>اسم العميل (اختياري)</label><input id="sc"><label>التليفون (مطلوب لو في باقي)</label><input id="sp" inputmode="tel"><label>المدفوع الآن</label><input id="spd" type="number" inputmode="decimal" value="'+sub+'"><div class="row"><b>الإجمالي</b><b id="st">'+m(sub)+'</b></div></div><button class="full" onclick="done()">إتمام البيع</button>'}
+ return h}
+function add(id){var p=db.products.find(function(x){return x.id==id}),c=cart.find(function(i){return i.pid==id});
+ if(c){if(c.qty<n(p.qty))c.qty++}else cart.push({pid:id,name:p.name,price:n(p.price),cost:n(p.cost),qty:1});q="";render()}
+function qty(k,d){var c=cart[k],p=db.products.find(function(x){return x.id==c.pid});c.qty+=d;if(c.qty>n(p.qty))c.qty=n(p.qty);if(c.qty<=0)cart.splice(k,1);render()}
+function tot(){var sub=cart.reduce(function(a,i){return a+i.price*i.qty},0),t=Math.max(0,sub-n($("sd").value));$("st").textContent=m(t);$("spd").value=t}
+function done(){
+ var sub=cart.reduce(function(a,i){return a+i.price*i.qty},0),d=n($("sd").value),t=Math.max(0,sub-d),pd=n($("spd").value);
+ if(pd<t&&!$("sp").value.trim()){alert("في باقي على العميل. اكتب رقم تليفونه.");return}
+ db.sales.push({id:uid(),date:Date.now(),items:cart.map(function(i){return{pid:i.pid,name:i.name,price:i.price,cost:i.cost,qty:i.qty}}),discount:d,total:t,paid:Math.min(pd,t),customer:$("sc").value.trim(),phone:$("sp").value.trim()});
+ cart.forEach(function(i){var p=db.products.find(function(x){return x.id==i.pid});if(p)p.qty=n(p.qty)-i.qty});
+ cart=[];save();alert("تم البيع بنجاح");tab="home";render()}
+
+function sresH(){if(!q&&cart.length)return"";var l=db.products.filter(function(p){return n(p.qty)>0&&(!q||(p.name+p.code).toLowerCase().indexOf(q.toLowerCase())>-1)}).slice(0,8);return l.length?l.map(function(p){return'<div class="card row" onclick="add(\''+p.id+'\')"><span>'+esc(p.name)+'<br><span class="mute">متاح '+n(p.qty)+'</span></span><b>'+m(p.price)+'</b></div>'}).join(""):'<div class="card mute">لا توجد نتائج (أو الكمية خلصت).</div>'}
+function sres(){$("sl").innerHTML=sresH()}
+function shist(){var l=db.sales.slice(-10).reverse();return'<h2>آخر فواتير البيع</h2>'+(l.length?l.map(function(s){return'<div class="card"><div class="row"><b>'+esc(s.customer||"عميل نقدي")+'</b><b>'+m(s.total)+'</b></div><div class="mute">'+fmt(s.date)+' • '+s.items.map(function(i){return esc(i.name)+" ×"+i.qty}).join("، ")+'</div><div class="row"><span class="'+(debtOf(s)?"bad":"good")+'">'+(debtOf(s)?"متبقي "+m(debtOf(s)):"مدفوعة")+'</span><button class="ghost sm" onclick="cs(\''+s.id+'\')">إلغاء الفاتورة</button></div></div>'}).join(""):'<div class="card mute">لا توجد فواتير بيع بعد.</div>')}
+function cs(id){var s=db.sales.find(function(x){return x.id==id});if(!s||!confirm("إلغاء فاتورة البيع وإرجاع الكميات للمخزون؟"))return;s.items.forEach(function(i){var p=db.products.find(function(x){return x.id==i.pid});if(p)p.qty=n(p.qty)+i.qty});db.sales=db.sales.filter(function(x){return x.id!=id});save();render()}
+
+function bresH(){if(!q&&bcart.length)return"";var l=db.products.filter(function(p){return !q||(p.name+p.code).toLowerCase().indexOf(q.toLowerCase())>-1}).slice(0,8);return l.length?l.map(function(p){return'<div class="card row" onclick="badd(\''+p.id+'\')"><span>'+esc(p.name)+'<br><span class="mute">الموجود '+n(p.qty)+'</span></span><b>'+m(p.cost)+'</b></div>'}).join(""):'<div class="card mute">لا توجد نتائج. اضغط على + صنف جديد لإضافته.</div>'}
+function bres(){$("bl").innerHTML=bresH()}
+function buy(){
+ var sub=bcart.reduce(function(a,i){return a+i.cost*i.qty},0);
+ var h='<div class="row" style="margin-bottom:8px"><input placeholder="ابحث عن منتج لفاتورة الشراء" value="'+esc(q)+'" oninput="q=this.value;bres()" style="margin:0"><button onclick="pform()">+ صنف جديد</button></div><div id="bl">'+bresH()+'</div>';
+ if(bcart.length){h+='<h2>فاتورة شراء</h2><div class="card">'+bcart.map(function(i,k){return'<div class="row"><b>'+esc(i.name)+'</b><button class="ghost sm" onclick="bqs('+k+',0)">حذف</button></div><div class="grid"><div><label>الكمية</label><input type="number" inputmode="numeric" value="'+i.qty+'" onchange="bqs('+k+',this.value)"></div><div><label>سعر الشراء للقطعة</label><input type="number" inputmode="decimal" value="'+i.cost+'" onchange="bc('+k+',this.value)"></div></div>'}).join("")+'</div>';
+  h+='<div class="card"><label>اسم المورد</label><input id="bs"><label>المدفوع للمورد</label><input id="bp" type="number" inputmode="decimal" value="'+sub+'"><div class="row"><b>الإجمالي</b><b>'+m(sub)+'</b></div></div><button class="full" onclick="bdone()">حفظ الفاتورة وإضافة الكميات للمخزون</button>'}
+ return h}
+function badd(id){var p=db.products.find(function(x){return x.id==id}),c=bcart.find(function(i){return i.pid==id});if(c)c.qty++;else bcart.push({pid:id,name:p.name,cost:n(p.cost),qty:1});q="";render()}
+function bqs(k,v){v=n(v);if(v<=0)bcart.splice(k,1);else bcart[k].qty=v;render()}
+function bc(k,v){bcart[k].cost=n(v);render()}
+function bdone(){
+ var t=bcart.reduce(function(a,i){return a+i.cost*i.qty},0);
+ db.purchases.push({id:uid(),date:Date.now(),supplier:$("bs").value.trim(),items:bcart.map(function(i){return{pid:i.pid,name:i.name,cost:i.cost,qty:i.qty}}),total:t,paid:Math.min(n($("bp").value),t)});
+ bcart.forEach(function(i){var p=db.products.find(function(x){return x.id==i.pid});if(p){p.qty=n(p.qty)+i.qty;p.cost=i.cost}});
+ bcart=[];save();alert("تم حفظ فاتورة الشراء وزادت الكميات في المخزون");tab="stock";render()}
+function bhist(){var l=db.purchases.slice(-10).reverse();return'<h2>آخر فواتير الشراء</h2>'+(l.length?l.map(function(s){var r=n(s.total)-n(s.paid);return'<div class="card"><div class="row"><b>'+esc(s.supplier||"مورد")+'</b><b>'+m(s.total)+'</b></div><div class="mute">'+fmt(s.date)+' • '+s.items.map(function(i){return esc(i.name)+" ×"+i.qty}).join("، ")+'</div><div class="row"><span class="'+(r>0?"bad":"good")+'">'+(r>0?"متبقي للمورد "+m(r):"مدفوعة")+'</span><button class="ghost sm" onclick="cp(\''+s.id+'\')">إلغاء الفاتورة</button></div></div>'}).join(""):'<div class="card mute">لا توجد فواتير شراء بعد.</div>')}
+function cp(id){var s=db.purchases.find(function(x){return x.id==id});if(!s||!confirm("إلغاء فاتورة الشراء وخصم الكميات من المخزون؟"))return;s.items.forEach(function(i){var p=db.products.find(function(x){return x.id==i.pid});if(p)p.qty=Math.max(0,n(p.qty)-i.qty)});db.purchases=db.purchases.filter(function(x){return x.id!=id});save();render()}
+
+function fix(){
+ var l=db.repairs.slice().reverse();
+ return'<div class="row" style="margin-bottom:8px"><h2 style="margin:0">أجهزة الصيانة</h2><button onclick="rform()">+ جهاز</button></div>'+(l.length?l.map(function(r){return'<div class="card"><div class="row"><b>'+esc(r.device)+'</b><span class="tag">'+r.status+'</span></div><div class="mute">'+esc(r.customer)+' • '+esc(r.phone)+' • '+fmt(r.date)+'</div><div>العطل: '+esc(r.fault)+'</div><div class="row"><span>التكلفة على العميل: <b>'+m(r.price)+'</b></span><span class="mute">قطع: '+m(r.parts)+'</span></div><div class="row"><button class="sm" onclick="rnext(\''+r.id+'\')">'+(r.status==ST[0]?"تم الإصلاح":r.status==ST[1]?"تسليم للعميل":"مسلّم")+'</button><button class="ghost sm" onclick="rform(\''+r.id+'\')">تعديل</button></div></div>'}).join(""):'<div class="card mute">لا توجد أجهزة. اضغط على + جهاز لتسجيل أول عملية استلام.</div>')}
+function rform(id){
+ var r=db.repairs.find(function(x){return x.id==id})||{device:"",customer:"",phone:"",fault:"",price:"",parts:""};
+ open_('<h2 style="margin-top:0">'+(id?"تعديل جهاز":"استلام جهاز")+'</h2><label>نوع الجهاز</label><input id="r1" value="'+esc(r.device)+'"><label>اسم العميل</label><input id="r2" value="'+esc(r.customer)+'"><label>التليفون</label><input id="r3" inputmode="tel" value="'+esc(r.phone)+'"><label>العطل</label><textarea id="r4" rows="2">'+esc(r.fault)+'</textarea><div class="grid"><div><label>سعر الصيانة</label><input id="r5" type="number" inputmode="decimal" value="'+esc(r.price)+'"></div><div><label>تكلفة القطع</label><input id="r6" type="number" inputmode="decimal" value="'+esc(r.parts)+'"></div></div><div class="row"><button onclick="rsave(\''+(id||"")+'\')">حفظ</button><button class="ghost" onclick="close_()">إلغاء</button></div>')}
+function rsave(id){
+ var o={device:$("r1").value.trim(),customer:$("r2").value.trim(),phone:$("r3").value.trim(),fault:$("r4").value.trim(),price:n($("r5").value),parts:n($("r6").value)};
+ if(!o.device||!o.customer){alert("اكتب نوع الجهاز واسم العميل");return}
+ if(id)Object.assign(db.repairs.find(function(x){return x.id==id}),o);else{o.id=uid();o.date=Date.now();o.status=ST[0];db.repairs.push(o)}
+ save();close_();render()}
+function rnext(id){var r=db.repairs.find(function(x){return x.id==id}),i=ST.indexOf(r.status);if(i<2){r.status=ST[i+1];if(i==1)r.doneAt=Date.now();save();render()}}
+
+function debt(){
+ var l=db.sales.filter(function(s){return debtOf(s)>0});
+ return'<h2 style="margin-top:0">ديون العملاء</h2>'+(l.length?l.map(function(s){return'<div class="card"><div class="row"><b>'+esc(s.customer||"عميل")+'</b><span class="bad">'+m(debtOf(s))+'</span></div><div class="mute">'+esc(s.phone)+' • '+fmt(s.date)+' • '+s.items.map(function(i){return esc(i.name)}).join("، ")+'</div><div class="row"><span class="mute">الإجمالي '+m(s.total)+' • مدفوع '+m(s.paid)+'</span><button class="sm" onclick="pay(\''+s.id+'\')">تسجيل دفعة</button></div></div>'}).join(""):'<div class="card good">مفيش ديون. كل العملاء خالصين.</div>')}
+function pay(id){var s=db.sales.find(function(x){return x.id==id}),v=prompt("المبلغ المدفوع (المتبقي "+debtOf(s)+")");if(v===null)return;v=n(v);if(v<=0)return;s.paid=Math.min(n(s.total),n(s.paid)+v);save();render()}
+
+function open_(h){$("dlg").innerHTML=h;$("dlg").showModal()}
+function close_(){$("dlg").close()}
+function exp(){var t=JSON.stringify(db);open_('<h2 style="margin-top:0">نسخة البيانات</h2><p class="mute">انسخ النص كله واحفظه في ملاحظات أو أرسله لنفسك.</p><textarea id="ex" rows="8" readonly>'+esc(t)+'</textarea><div class="row"><button onclick="$(\'ex\').select();document.execCommand(\'copy\')">نسخ</button><button class="ghost" onclick="close_()">إغلاق</button></div>')}
+function imp(){open_('<h2 style="margin-top:0">استرجاع نسخة</h2><p class="mute">الصق نص النسخة هنا. سيتم استبدال البيانات الحالية.</p><textarea id="im" rows="8"></textarea><div class="row"><button onclick="doimp()">استرجاع</button><button class="ghost" onclick="close_()">إلغاء</button></div>')}
+function doimp(){try{var d=JSON.parse($("im").value);if(!d.products||!d.sales||!d.repairs)throw 0;db=d;if(!db.purchases)db.purchases=[];save();close_();render()}catch(e){alert("النص غير صالح. تأكد من لصق النسخة كاملة.")}}
+render();
+</script>
+</body>
+</html>
